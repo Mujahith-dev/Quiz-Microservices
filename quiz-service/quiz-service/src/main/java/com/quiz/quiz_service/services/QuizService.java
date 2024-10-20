@@ -1,10 +1,9 @@
 package com.quiz.quiz_service.services;
 
-
-import com.quiz.quiz_service.entity.Question;
 import com.quiz.quiz_service.entity.QuestionWrapper;
 import com.quiz.quiz_service.entity.Quiz;
 import com.quiz.quiz_service.entity.Response;
+import com.quiz.quiz_service.feign.QuizInterface;
 import com.quiz.quiz_service.repository.QuizRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,23 +19,19 @@ public class QuizService {
     @Autowired
     QuizRepository quizRepository;
     @Autowired
-    QuestionRepository questionRepository;
+    QuizInterface quizInterface;
 
 
     public ResponseEntity<String> createQuiz(String category, int numQ, String title) {
-       try{
-        List<Question> questions = questionRepository.findRandomQuestionByCategory(category, numQ);
+
+        List<Integer> questions = quizInterface.getQuestionForQuiz(category, numQ).getBody();
         Quiz quiz = new Quiz();
         quiz.setTitle(title);
-        quiz.setQuestions(questions);
+        quiz.setQuestionIds(questions);
         quizRepository.save(quiz);
         return new ResponseEntity<>("Quiz created", HttpStatus.CREATED);
-        }
-       catch (Exception e){
-           e.printStackTrace();
-       }
-       return new ResponseEntity<> ("quiz not created", HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
 
     public ResponseEntity<String> deleteById(Integer id) {
         try{
@@ -49,30 +44,16 @@ public class QuizService {
         return new ResponseEntity<>("Error in deleting", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    public ResponseEntity<List<QuestionWrapper>> getQuestion(Integer id) {
+    public ResponseEntity<List<QuestionWrapper>> getQuizQuestion(Integer id) {
         Optional<Quiz> quiz = quizRepository.findById(id);
-        List<Question> questionFromDb = quiz.get().getQuestions();
-        List<QuestionWrapper> quesForUser = new ArrayList<>();
-        for(Question q : questionFromDb){
-            QuestionWrapper qw = new QuestionWrapper(q.getId(),q.getQuestionTitle(),
-                    q.getOption1(),q.getOption2(),q.getOption3(),q.getOption4());
-                    quesForUser.add(qw);
-        }
+        List<Integer> questionIds = quiz.get().getQuestionIds();
+       ResponseEntity<List<QuestionWrapper>> questions = quizInterface.getQuestionsFromId(questionIds);
 
-        return new ResponseEntity<>(quesForUser, HttpStatus.OK);
+        return questions;
     }
 
     public ResponseEntity<Integer> getResult (Integer id, List<Response> responses){
-        Quiz quiz = quizRepository.findById(id).get();
-        List<Question> question = quiz.getQuestions();
-        int result = 0;
-        int i=0;
-        for (Response res : responses) {
-            if (res.getResponses().equals(question.get(i).getRightAnswer()))
-                result++;
-
-            i++;
-        }
-        return new ResponseEntity<>(result, HttpStatus.OK) ;
+       ResponseEntity<Integer> result = quizInterface.getScore(responses);
+        return result ;
     }
 }

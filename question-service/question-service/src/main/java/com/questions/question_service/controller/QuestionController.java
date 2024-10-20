@@ -40,7 +40,6 @@ public class QuestionController {
         return questionService.editQuestion(id, newQuestion);
     }
 
-
     @GetMapping("/generate")
     public ResponseEntity<List<Integer>> getQuestionForQuiz(@RequestParam String categoryName,
             @RequestParam Integer numOfQuestions){
